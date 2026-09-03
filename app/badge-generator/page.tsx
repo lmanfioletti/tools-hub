@@ -7,6 +7,7 @@ import {
   Image as ImageIcon, FileSpreadsheet, CheckCircle2,
   ChevronRight, ChevronLeft, Type, Pencil, Check, X,
 } from "lucide-react";
+import { useSession, signIn } from "next-auth/react";
 import * as XLSX from "xlsx";
 import { EmployeeData, TemplateConfig, DEFAULT_TEMPLATE } from "../lib/types";
 import { generateBadgeZip } from "../lib/pdfGenerator";
@@ -14,6 +15,7 @@ import TemplateEditor from "./TemplateEditor";
 import styles from "./page.module.css";
 
 export default function BadgeGenerator() {
+  const { data: session, status } = useSession();
   const [step, setStep] = useState(1);
 
   // Resources
@@ -145,6 +147,26 @@ export default function BadgeGenerator() {
 
   const canGenerate = background && logo && employees.length > 0 && !isGenerating;
 
+  if (status === "loading") {
+    return <main className={styles.main}><div style={{ padding: "4rem", textAlign: "center" }}>Carregando...</div></main>;
+  }
+
+  if (!session) {
+    return (
+      <main className={styles.main}>
+        <div style={{ padding: "4rem", textAlign: "center" }} className="material-panel">
+          <h2>Acesso Restrito</h2>
+          <p style={{ color: "#5f6368", marginTop: "1rem", marginBottom: "2rem" }}>
+            Você precisa estar autenticado para utilizar o Gerador de Crachás.
+          </p>
+          <button onClick={() => signIn("google")} className="btn">
+            Faça login com o Google
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className={styles.main}>
       <Link href="/" className={`btn btn-outline ${styles.backBtn}`}>
@@ -174,7 +196,7 @@ export default function BadgeGenerator() {
 
       {/* ═══════ STEP 1: Resources ═══════ */}
       {step === 1 && (
-        <section className={`glass-panel ${styles.section}`}>
+        <section className={`material-panel ${styles.section}`}>
           <h2 className={styles.sectionTitle}>Recursos Base</h2>
           <p className={styles.sectionDesc}>
             Faça upload do fundo do crachá, da logo e, opcionalmente, de uma fonte customizada (.ttf).
@@ -219,7 +241,7 @@ export default function BadgeGenerator() {
 
       {/* ═══════ STEP 2: Template Editor ═══════ */}
       {step === 2 && background && (
-        <section className={`glass-panel ${styles.section}`}>
+        <section className={`material-panel ${styles.section}`}>
           <h2 className={styles.sectionTitle}>Montar Template</h2>
           <p className={styles.sectionDesc}>
             Arraste os elementos para posicioná-los. Clique para ajustar fonte, cor e tamanho.
@@ -245,7 +267,7 @@ export default function BadgeGenerator() {
 
       {/* ═══════ STEP 3: Employees + Generate ═══════ */}
       {step === 3 && (
-        <section className={`glass-panel ${styles.section}`}>
+        <section className={`material-panel ${styles.section}`}>
           <div className={styles.sectionHeader}>
             <h2 className={styles.sectionTitle}>Funcionários</h2>
             <div className={styles.importActions}>

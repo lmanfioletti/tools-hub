@@ -1,4 +1,6 @@
 import "./globals.css";
+import { NextAuthProvider } from "./components/NextAuthProvider";
+import { Navbar } from "./components/Navbar";
 
 export const metadata = {
   title: "Tools Hub | Central de Ferramentas",
@@ -12,7 +14,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body>
+        <NextAuthProvider>
+          <Navbar />
+          {children}
+        </NextAuthProvider>
+      </body>
     </html>
   );
 }

@@ -5,47 +5,47 @@ import { Wrench, FileBadge, ArrowRight } from "lucide-react";
 
 export default function Home() {
   return (
-    <main style={{ padding: "4rem 2rem", maxWidth: "1200px", margin: "0 auto" }}>
-      <header style={{ textAlign: "center", marginBottom: "4rem" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.05)", padding: "1rem", borderRadius: "50%", marginBottom: "1rem" }}>
-          <Wrench size={48} color="#60a5fa" />
-        </div>
-        <h1 className="title-gradient" style={{ fontSize: "3.5rem", marginBottom: "1rem" }}>Tools Hub</h1>
-        <p style={{ fontSize: "1.2rem", color: "#94a3b8", maxWidth: "600px", margin: "0 auto" }}>
-          Sua central de ferramentas utilitárias. Acesse de forma rápida e gere arquivos com qualidade premium.
+    <main style={{ maxWidth: 1200, margin: "0 auto", padding: "4rem 2rem" }}>
+      <div style={{ textAlign: "center", marginBottom: "4rem" }}>
+        <h1 style={{ fontSize: "3rem", fontWeight: 700, marginBottom: "1rem", color: "#202124" }}>
+          Tools Hub
+        </h1>
+        <p style={{ fontSize: "1.25rem", color: "#5f6368", maxWidth: 600, margin: "0 auto" }}>
+          Bem-vindo à plataforma de ferramentas internas. Selecione um dos aplicativos abaixo para começar.
         </p>
-      </header>
+      </div>
 
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))", gap: "2rem" }}>
         {/* Tool Card: Gerador de Crachás */}
         <Link href="/badge-generator" style={{ display: "block" }}>
-          <div className="glass-panel" style={{ 
+          <div className="material-panel" style={{ 
             height: "100%", 
             display: "flex", 
             flexDirection: "column",
-            transition: "transform 0.3s ease, border-color 0.3s ease",
-            cursor: "pointer"
+            transition: "transform 0.2s, box-shadow 0.2s"
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.transform = "translateY(-5px)";
-            e.currentTarget.style.borderColor = "rgba(96, 165, 250, 0.5)";
+            e.currentTarget.style.boxShadow = "0 10px 20px rgba(0,0,0,0.1)";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.borderColor = "var(--surface-border)";
+            e.currentTarget.style.boxShadow = "none";
           }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.5rem" }}>
-              <div style={{ background: "rgba(59, 130, 246, 0.2)", padding: "0.75rem", borderRadius: "12px", color: "#60a5fa" }}>
+              <div style={{ padding: "1rem", background: "rgba(26, 115, 232, 0.1)", borderRadius: "12px", color: "#1a73e8" }}>
                 <FileBadge size={32} />
               </div>
-              <h2 style={{ fontSize: "1.5rem", fontWeight: "600" }}>Gerador de Crachás</h2>
+              <div>
+                <h2 style={{ fontSize: "1.5rem", fontWeight: 600, margin: 0, color: "#202124" }}>Gerador de Crachás</h2>
+                <span style={{ fontSize: "0.875rem", color: "#1a73e8", fontWeight: 500 }}>Premium Tool</span>
+              </div>
             </div>
-            <p style={{ color: "#94a3b8", marginBottom: "2rem", flexGrow: 1, lineHeight: "1.6" }}>
-              Crie crachás profissionais em PDF para seus colaboradores. 
-              Faça upload de planilhas Excel/CSV ou insira manualmente, tudo gerado localmente com alta qualidade.
+            <p style={{ color: "#5f6368", lineHeight: 1.6, flexGrow: 1, marginBottom: "2rem" }}>
+              Crie crachás corporativos em lote a partir de uma planilha. Editor visual drag-and-drop, exportação para PDF pronto para impressão com margens de segurança.
             </p>
-            <div style={{ display: "flex", alignItems: "center", color: "#60a5fa", fontWeight: "500", gap: "0.5rem" }}>
+            <div style={{ display: "flex", alignItems: "center", color: "#1a73e8", fontWeight: "500", gap: "0.5rem" }}>
               Acessar ferramenta <ArrowRight size={18} />
             </div>
           </div>
