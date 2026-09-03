@@ -156,7 +156,7 @@ export default function BadgeGenerator() {
       <main className={styles.main}>
         <div style={{ padding: "4rem", textAlign: "center" }} className="material-panel">
           <h2>Acesso Restrito</h2>
-          <p style={{ color: "#5f6368", marginTop: "1rem", marginBottom: "2rem" }}>
+          <p style={{ color: "var(--text-secondary)", marginTop: "1rem", marginBottom: "2rem" }}>
             Você precisa estar autenticado para utilizar o Gerador de Crachás.
           </p>
           <button onClick={() => signIn("google")} className="btn">

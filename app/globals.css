@@ -6,17 +6,43 @@
   
   --primary: #1a73e8; /* Google Blue */
   --primary-hover: #174ea6;
+  --primary-transparent: rgba(26, 115, 232, 0.08);
   
   --surface: #ffffff;
   --surface-border: #dadce0;
   --surface-hover: #f1f3f4;
   
-  --danger: #d93025; /* Google Red */
-  --success: #1e8e3e; /* Google Green */
-  --warning: #f9ab00; /* Google Yellow */
+  --text-secondary: #5f6368;
+  --text-hint: #9aa0a6;
+  
+  --danger: #d93025;
+  --danger-transparent: rgba(217, 48, 37, 0.1);
+  --success: #1e8e3e;
+  --success-transparent: rgba(30, 142, 62, 0.1);
   
   --radius: 8px;
   --radius-lg: 12px;
+}
+
+[data-theme='dark'] {
+  --background: #202124;
+  --foreground: #e8eaed;
+  
+  --primary: #8ab4f8;
+  --primary-hover: #aecbfa;
+  --primary-transparent: rgba(138, 180, 248, 0.15);
+  
+  --surface: #292a2d;
+  --surface-border: #5f6368;
+  --surface-hover: #3c4043;
+  
+  --text-secondary: #9aa0a6;
+  --text-hint: #5f6368;
+  
+  --danger: #f28b82;
+  --danger-transparent: rgba(242, 139, 130, 0.15);
+  --success: #81c995;
+  --success-transparent: rgba(129, 201, 149, 0.15);
 }
 
 * {
@@ -34,7 +60,7 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Open Sans', 'Roboto', sans-serif;
-  color: #202124;
+  color: var(--foreground);
 }
 
 a {
@@ -82,8 +108,8 @@ a:hover {
 }
 
 .btn:disabled {
-  background: #f1f3f4;
-  color: #3c4043;
+  background: var(--surface-hover);
+  color: var(--text-secondary);
   opacity: 0.6;
   cursor: not-allowed;
   box-shadow: none;
