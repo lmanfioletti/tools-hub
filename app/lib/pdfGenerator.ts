@@ -1,4 +1,5 @@
 import { PDFDocument, rgb, StandardFonts, PDFFont } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { EmployeeData, TemplateConfig, ElementConfig, PAGE_WIDTH_PT, PAGE_HEIGHT_PT } from './types';
@@ -159,6 +160,7 @@ export async function generateBadgeZip(
 
   for (const emp of employees) {
     const pdfDoc = await PDFDocument.create();
+    pdfDoc.registerFontkit(fontkit);
     const fonts = await buildFontCache(pdfDoc, customFontBytes);
 
     // Embed background
