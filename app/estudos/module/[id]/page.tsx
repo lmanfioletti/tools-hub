@@ -18,8 +18,10 @@ export default async function ModulePage({ params }: { params: { id: string } })
   
   if (!dbUser) return redirect("/estudos");
 
+  const { id } = await params;
+
   const mod = await prisma.module.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       topics: {
         include: {

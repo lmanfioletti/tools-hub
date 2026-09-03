@@ -17,8 +17,10 @@ export default async function TopicPage({ params }: { params: { id: string, topi
   
   if (!dbUser) return redirect("/estudos");
 
+  const { id, topicId } = await params;
+
   const topic = await prisma.topic.findUnique({
-    where: { id: params.topicId },
+    where: { id: topicId },
     include: {
       questions: true,
       progress: {
@@ -27,7 +29,7 @@ export default async function TopicPage({ params }: { params: { id: string, topi
     }
   });
 
-  if (!topic || topic.moduleId !== params.id) {
+  if (!topic || topic.moduleId !== id) {
     return <div>Tópico não encontrado</div>;
   }
 
@@ -37,7 +39,7 @@ export default async function TopicPage({ params }: { params: { id: string, topi
     <main style={{ padding: "3rem 2rem", background: "var(--background)", minHeight: "calc(100vh - 65px)" }}>
       <StudyClient
         topicId={topic.id}
-        moduleId={params.id}
+        moduleId={id}
         title={topic.title}
         content={topic.content}
         initialCompleted={initialCompleted}
