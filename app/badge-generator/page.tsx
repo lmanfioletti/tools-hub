@@ -66,14 +66,20 @@ export default function BadgeGenerator() {
   // ─── Generic handlers ──────────────────────────────────────────
   const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setBackground({ url: URL.createObjectURL(file), type: file.type });
-    }
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setBackground({ url: reader.result as string, type: file.type });
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (url: string) => void) => {
     const file = e.target.files?.[0];
-    if (file) setter(URL.createObjectURL(file));
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setter(reader.result as string);
+    reader.readAsDataURL(file);
   };
 
   const addEmployee = (e: React.FormEvent) => {
@@ -377,7 +383,11 @@ export default function BadgeGenerator() {
                               }
                               <input type="file" accept="image/*" hidden onChange={(e) => {
                                 const file = e.target.files?.[0];
-                                if (file) setEditData({ ...editData, photoUrl: URL.createObjectURL(file) });
+                                if (file) {
+                                  const r = new FileReader();
+                                  r.onload = () => setEditData({ ...editData, photoUrl: r.result as string });
+                                  r.readAsDataURL(file);
+                                }
                               }} />
                             </label>
                           ) : (
