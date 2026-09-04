@@ -31,7 +31,7 @@ export async function pdfToImageDataUrl(pdfDataUrl: string, scale = 4): Promise<
   canvas.height = viewport.height;
   const ctx = canvas.getContext('2d')!;
 
-  await page.render({ canvasContext: ctx, viewport }).promise;
+  await page.render({ canvasContext: ctx, viewport } as any).promise;
 
   return canvas.toDataURL('image/png');
 }
