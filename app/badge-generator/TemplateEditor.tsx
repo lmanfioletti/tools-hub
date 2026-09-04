@@ -155,17 +155,8 @@ export default function TemplateEditor({
             style={{ aspectRatio: `${BADGE_ASPECT}` }}
             onClick={handleBgClick}
           >
-            {/* Background image */}
-            {backgroundType === "application/pdf" ? (
-              <object
-                data={`${backgroundUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
-                type="application/pdf"
-                className={styles.bgImage}
-                style={{ pointerEvents: "none" }}
-              />
-            ) : (
-              <img src={backgroundUrl} alt="Fundo" className={styles.bgImage} draggable={false} />
-            )}
+            {/* Background image (PDFs are converted to images at upload time) */}
+            <img src={backgroundUrl} alt="Fundo" className={styles.bgImage} draggable={false} />
 
             {/* Margin Guides */}
             <div className={styles.marginGuide} />

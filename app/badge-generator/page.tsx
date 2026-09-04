@@ -11,6 +11,7 @@ import { useSession, signIn } from "next-auth/react";
 import * as XLSX from "xlsx";
 import { EmployeeData, TemplateConfig, DEFAULT_TEMPLATE, BadgeSize, DEFAULT_BADGE_SIZE } from "../lib/types";
 import { generateBadgeZip } from "../lib/pdfGenerator";
+import { pdfToImageDataUrl } from "../lib/pdfToImage";
 import TemplateEditor from "./TemplateEditor";
 import styles from "./page.module.css";
 
@@ -30,6 +31,7 @@ export default function BadgeGenerator() {
   // Employees
   const [employees, setEmployees] = useState<EmployeeData[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isConvertingBg, setIsConvertingBg] = useState(false);
   const [badgeSize, setBadgeSize] = useState<BadgeSize>(DEFAULT_BADGE_SIZE);
   const [formData, setFormData] = useState({
     name: "", jobTitle: "", cpf: "", unop: "", hospital: "",
@@ -63,13 +65,27 @@ export default function BadgeGenerator() {
     }
   };
 
-  // ─── Generic handlers ──────────────────────────────────────────
-  const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ─── Generic handlers ──────────────────────────────────────────────────
+  const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      setBackground({ url: reader.result as string, type: file.type });
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      // If the file is a PDF, convert it to a high-res PNG image
+      if (file.type === 'application/pdf') {
+        setIsConvertingBg(true);
+        try {
+          const imageDataUrl = await pdfToImageDataUrl(dataUrl);
+          setBackground({ url: imageDataUrl, type: 'image/png' });
+        } catch (err) {
+          console.error('Failed to convert PDF background:', err);
+          alert('Erro ao converter o PDF de fundo. Tente usar uma imagem PNG ou JPG.');
+        }
+        setIsConvertingBg(false);
+      } else {
+        setBackground({ url: dataUrl, type: file.type });
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -213,8 +229,8 @@ export default function BadgeGenerator() {
             <label className={`${styles.uploadBox} ${background ? styles.uploadDone : ""}`}>
               <input type="file" accept="image/*,application/pdf" onChange={handleBgUpload} hidden />
               <Upload size={28} className={styles.uploadIcon} />
-              <span className={styles.uploadLabel}>{background ? "✓ Fundo carregado" : "Fundo do Crachá"}</span>
-              <span className={styles.uploadHint}>PNG, JPG, WEBP ou PDF</span>
+              <span className={styles.uploadLabel}>{isConvertingBg ? "⏳ Convertendo PDF..." : background ? "✓ Fundo carregado" : "Fundo do Crachá"}</span>
+              <span className={styles.uploadHint}>PNG, JPG, WEBP ou PDF (PDFs são convertidos automaticamente)</span>
               {background && <CheckCircle2 size={20} className={styles.checkIcon} />}
             </label>
 
