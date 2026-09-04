@@ -1,74 +1,54 @@
-import { PDFDocument, rgb, StandardFonts, PDFFont } from 'pdf-lib';
-import fontkit from '@pdf-lib/fontkit';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { EmployeeData, TemplateConfig, ElementConfig, PAGE_WIDTH_PT, PAGE_HEIGHT_PT } from './types';
+import {
+  EmployeeData, TemplateConfig, ElementConfig,
+  BadgeSize, badgeSizeToPixels, cutMarginPixels
+} from './types';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
-function convertImageToPng(src: string, circular = false): Promise<ArrayBuffer> {
+function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    // Only set crossOrigin for remote URLs, not blob: or data: URLs
     if (!src.startsWith('blob:') && !src.startsWith('data:')) {
       img.crossOrigin = 'anonymous';
     }
-    img.onload = () => {
-      try {
-        const w = img.naturalWidth || img.width;
-        const h = img.naturalHeight || img.height;
-        const canvas = document.createElement('canvas');
-
-        if (circular) {
-          const size = Math.min(w, h);
-          canvas.width = size;
-          canvas.height = size;
-          const ctx = canvas.getContext('2d')!;
-          ctx.beginPath();
-          ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
-          ctx.closePath();
-          ctx.clip();
-          ctx.drawImage(img, (w - size) / 2, (h - size) / 2, size, size, 0, 0, size, size);
-        } else {
-          canvas.width = w;
-          canvas.height = h;
-          canvas.getContext('2d')!.drawImage(img, 0, 0);
-        }
-
-        const dataUrl = canvas.toDataURL('image/png');
-        const bin = atob(dataUrl.split(',')[1]);
-        const bytes = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        resolve(bytes.buffer);
-      } catch (e) { reject(e); }
-    };
-    img.onerror = () => reject(new Error('Image load failed'));
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Image load failed: ' + src));
     img.src = src;
   });
 }
 
-function isPdfFile(bytes: ArrayBuffer): boolean {
-  const u8 = new Uint8Array(bytes);
-  return u8.length >= 4 && u8[0] === 0x25 && u8[1] === 0x50 && u8[2] === 0x44 && u8[3] === 0x46;
-}
-
-function hexToRgb(hex: string) {
+function hexToRGBA(hex: string): string {
   const h = hex.replace('#', '');
-  return rgb(
-    parseInt(h.substring(0, 2), 16) / 255,
-    parseInt(h.substring(2, 4), 16) / 255,
-    parseInt(h.substring(4, 6), 16) / 255
-  );
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgb(${r},${g},${b})`;
 }
 
-function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: number): string[] {
+// Map fontFamily ids to CSS font names
+const FONT_CSS_MAP: Record<string, string> = {
+  helvetica: 'Helvetica, Arial, sans-serif',
+  times: "'Times New Roman', Times, serif",
+  courier: "'Courier New', Courier, monospace",
+  calibri: 'Calibri, sans-serif',
+  custom: 'CustomBadgeFont, sans-serif',
+};
+
+// Wrap text into lines that fit within maxWidth (canvas measureText)
+function wrapTextCanvas(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number
+): string[] {
   const words = text.split(' ');
   if (words.length === 0) return [text];
   const lines: string[] = [];
   let line = words[0];
   for (let i = 1; i < words.length; i++) {
     const test = line + ' ' + words[i];
-    if (font.widthOfTextAtSize(test, fontSize) < maxWidth) {
+    if (ctx.measureText(test).width < maxWidth) {
       line = test;
     } else {
       lines.push(line);
@@ -79,111 +59,64 @@ function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: numbe
   return lines;
 }
 
-function toX(pct: number) { return (pct / 100) * PAGE_WIDTH_PT; }
-function toY(pct: number) { return PAGE_HEIGHT_PT - (pct / 100) * PAGE_HEIGHT_PT; }
-function toW(pct: number) { return (pct / 100) * PAGE_WIDTH_PT; }
-function toH(pct: number) { return (pct / 100) * PAGE_HEIGHT_PT; }
-
-// ─── Font cache for a single PDF document ────────────────────────────────
-
-interface FontCache {
-  helvetica: PDFFont;
-  helveticaBold: PDFFont;
-  times: PDFFont;
-  timesBold: PDFFont;
-  courier: PDFFont;
-  courierBold: PDFFont;
-  calibri?: PDFFont;
-  calibriBold?: PDFFont;
-  custom?: PDFFont;
-}
-
-async function buildFontCache(pdfDoc: PDFDocument, customFontBytes?: ArrayBuffer): Promise<FontCache> {
-  const [helvetica, helveticaBold, times, timesBold, courier, courierBold] = await Promise.all([
-    pdfDoc.embedFont(StandardFonts.Helvetica),
-    pdfDoc.embedFont(StandardFonts.HelveticaBold),
-    pdfDoc.embedFont(StandardFonts.TimesRoman),
-    pdfDoc.embedFont(StandardFonts.TimesRomanBold),
-    pdfDoc.embedFont(StandardFonts.Courier),
-    pdfDoc.embedFont(StandardFonts.CourierBold),
-  ]);
-
-  let custom: PDFFont | undefined;
-  if (customFontBytes) {
-    try {
-      custom = await pdfDoc.embedFont(customFontBytes);
-    } catch (e) {
-      console.warn('Could not embed custom font', e);
-    }
-  }
-
-  let calibri: PDFFont | undefined;
-  let calibriBold: PDFFont | undefined;
-  try {
-    const calibriBuf = await fetch('/fonts/Calibri-Regular.ttf').then(r => r.arrayBuffer());
-    const calibriBoldBuf = await fetch('/fonts/Calibri-Bold.ttf').then(r => r.arrayBuffer());
-    calibri = await pdfDoc.embedFont(calibriBuf);
-    calibriBold = await pdfDoc.embedFont(calibriBoldBuf);
-  } catch (e) {
-    console.warn('Could not load Calibri font, falling back to Helvetica', e);
-  }
-
-  return { helvetica, helveticaBold, times, timesBold, courier, courierBold, calibri, calibriBold, custom };
-}
-
-function getFont(cfg: ElementConfig, fonts: FontCache): PDFFont {
-  const bold = cfg.fontWeight === 'bold';
-  switch (cfg.fontFamily) {
-    case 'calibri': return (bold ? fonts.calibriBold : fonts.calibri) || (bold ? fonts.helveticaBold : fonts.helvetica);
-    case 'custom': return fonts.custom || (bold ? fonts.helveticaBold : fonts.helvetica);
-    case 'times': return bold ? fonts.timesBold : fonts.times;
-    case 'courier': return bold ? fonts.courierBold : fonts.courier;
-    default: return bold ? fonts.helveticaBold : fonts.helvetica;
-  }
-}
-
-// ─── Main generator ─────────────────────────────────────────────────────
+// ─── Main Generator (PNG output) ────────────────────────────────────────
 
 export async function generateBadgeZip(
   backgroundUrl: string,
   logoUrl: string,
   employees: EmployeeData[],
   templateConfig: TemplateConfig,
-  customFontBytes?: ArrayBuffer
+  customFontBytes?: ArrayBuffer,
+  badgeSize?: BadgeSize
 ) {
   const zip = new JSZip();
 
+  const size = badgeSize || { widthCm: 5.5, heightCm: 9 };
+  const { widthPx, heightPx } = badgeSizeToPixels(size);
+  const margin = cutMarginPixels(); // ~35px at 300dpi for 0.3cm
+
+  // Total canvas = badge + margin on each side
+  const canvasW = widthPx + margin * 2;
+  const canvasH = heightPx + margin * 2;
+
   // Pre-load assets
-  const bgRawBytes = await fetch(backgroundUrl).then(r => r.arrayBuffer());
-  const bgIsPdf = isPdfFile(bgRawBytes);
-  const logoPngBuf = await convertImageToPng(logoUrl);
+  const bgImg = await loadImage(backgroundUrl);
+  const logoImg = await loadImage(logoUrl);
+
+  // Register custom font via FontFace if bytes provided and not yet registered
+  if (customFontBytes) {
+    try {
+      const font = new FontFace('CustomBadgeFont', customFontBytes);
+      await font.load();
+      document.fonts.add(font);
+    } catch (_) { /* already registered or unsupported */ }
+  }
+
+  // Ensure Calibri is available (try loading from /fonts/)
+  try {
+    const calibriResp = await fetch('/fonts/Calibri-Regular.ttf');
+    if (calibriResp.ok) {
+      const buf = await calibriResp.arrayBuffer();
+      const f = new FontFace('Calibri', buf);
+      await f.load();
+      document.fonts.add(f);
+    }
+    const calibriBoldResp = await fetch('/fonts/Calibri-Bold.ttf');
+    if (calibriBoldResp.ok) {
+      const buf = await calibriBoldResp.arrayBuffer();
+      const f = new FontFace('Calibri', buf, { weight: 'bold' });
+      await f.load();
+      document.fonts.add(f);
+    }
+  } catch (_) { /* fallback to system fonts */ }
 
   for (const emp of employees) {
-    const pdfDoc = await PDFDocument.create();
-    pdfDoc.registerFontkit(fontkit);
-    const fonts = await buildFontCache(pdfDoc, customFontBytes);
-
-    // Embed background
-    let bgPdfPage: any = null;
-    let bgImage: any = null;
-    if (bgIsPdf) {
-      const [page] = await pdfDoc.embedPdf(bgRawBytes, [0]);
-      bgPdfPage = page;
-    } else {
-      const bgPng = await convertImageToPng(backgroundUrl);
-      bgImage = await pdfDoc.embedPng(bgPng);
-    }
-
-    // Embed logo & photo
-    const logoImage = await pdfDoc.embedPng(logoPngBuf);
-    let photoImage: any = null;
+    // Pre-load photo
+    let photoImg: HTMLImageElement | null = null;
     if (emp.photoUrl) {
-      const circular = templateConfig.front.photo?.circular ?? true;
-      const photoPng = await convertImageToPng(emp.photoUrl, circular);
-      photoImage = await pdfDoc.embedPng(photoPng);
+      photoImg = await loadImage(emp.photoUrl);
     }
 
-    // Data map
     const dataMap: Record<string, string> = {
       name: emp.name.toUpperCase(),
       jobTitle: emp.jobTitle.toUpperCase(),
@@ -193,50 +126,126 @@ export async function generateBadgeZip(
     };
 
     // ═══════ Render a side ═══════
-    const renderSide = (side: 'front' | 'back') => {
-      const page = pdfDoc.addPage([PAGE_WIDTH_PT, PAGE_HEIGHT_PT]);
+    const renderSide = (side: 'front' | 'back'): HTMLCanvasElement => {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvasW;
+      canvas.height = canvasH;
+      const ctx = canvas.getContext('2d')!;
 
-      if (bgImage) page.drawImage(bgImage, { x: 0, y: 0, width: PAGE_WIDTH_PT, height: PAGE_HEIGHT_PT });
-      else if (bgPdfPage) page.drawPage(bgPdfPage, { x: 0, y: 0, width: PAGE_WIDTH_PT, height: PAGE_HEIGHT_PT });
+      // Fill the whole canvas with white (background for margin area)
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvasW, canvasH);
 
-      for (const [key, cfg] of Object.entries(templateConfig[side])) {
-        const x = toX(cfg.xPercent);
-        const w = toW(cfg.widthPercent);
-        const h = toH(cfg.heightPercent);
-        const yTop = toY(cfg.yPercent);
+      // Draw dashed cut margin lines (light gray) around the badge area
+      ctx.setLineDash([8, 6]);
+      ctx.strokeStyle = '#cccccc';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(margin, margin, widthPx, heightPx);
+      ctx.setLineDash([]);
+
+      // Draw small corner crop marks for precise cutting
+      const markLen = Math.round(margin * 0.6);
+      ctx.strokeStyle = '#aaaaaa';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([]);
+      // Top-left
+      ctx.beginPath();
+      ctx.moveTo(margin - markLen, margin); ctx.lineTo(margin, margin);
+      ctx.moveTo(margin, margin - markLen); ctx.lineTo(margin, margin);
+      ctx.stroke();
+      // Top-right
+      ctx.beginPath();
+      ctx.moveTo(margin + widthPx, margin - markLen); ctx.lineTo(margin + widthPx, margin);
+      ctx.moveTo(margin + widthPx, margin); ctx.lineTo(margin + widthPx + markLen, margin);
+      ctx.stroke();
+      // Bottom-left
+      ctx.beginPath();
+      ctx.moveTo(margin - markLen, margin + heightPx); ctx.lineTo(margin, margin + heightPx);
+      ctx.moveTo(margin, margin + heightPx); ctx.lineTo(margin, margin + heightPx + markLen);
+      ctx.stroke();
+      // Bottom-right
+      ctx.beginPath();
+      ctx.moveTo(margin + widthPx, margin + heightPx); ctx.lineTo(margin + widthPx + markLen, margin + heightPx);
+      ctx.moveTo(margin + widthPx, margin + heightPx); ctx.lineTo(margin + widthPx, margin + heightPx + markLen);
+      ctx.stroke();
+
+      // Draw background image stretched to the badge area
+      ctx.drawImage(bgImg, margin, margin, widthPx, heightPx);
+
+      // Render elements
+      const sideConfig = templateConfig[side];
+      for (const [key, cfg] of Object.entries(sideConfig)) {
+        const x = margin + (cfg.xPercent / 100) * widthPx;
+        const y = margin + (cfg.yPercent / 100) * heightPx;
+        const w = (cfg.widthPercent / 100) * widthPx;
+        const h = (cfg.heightPercent / 100) * heightPx;
 
         if (cfg.type === 'image') {
-          const img = key === 'logo' ? logoImage : (key === 'photo' && side === 'front' ? photoImage : null);
+          const img = key === 'logo' ? logoImg : (key === 'photo' && side === 'front' ? photoImg : null);
           if (!img) continue;
-          const dims = img.scaleToFit(w, h);
-          const cx = x + (w - dims.width) / 2;
-          const cy = yTop - h + (h - dims.height) / 2;
-          page.drawImage(img, { x: cx, y: cy, width: dims.width, height: dims.height });
+
+          // Scale to fit
+          const scale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
+          const dw = img.naturalWidth * scale;
+          const dh = img.naturalHeight * scale;
+          const cx = x + (w - dw) / 2;
+          const cy = y + (h - dh) / 2;
+
+          if (cfg.circular) {
+            ctx.save();
+            const radius = Math.min(dw, dh) / 2;
+            ctx.beginPath();
+            ctx.arc(cx + dw / 2, cy + dh / 2, radius, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip();
+            ctx.drawImage(img, cx, cy, dw, dh);
+            ctx.restore();
+          } else {
+            ctx.drawImage(img, cx, cy, dw, dh);
+          }
         } else {
+          // Text rendering
           const text = dataMap[key] || '';
           if (!text) continue;
-          const font = getFont(cfg, fonts);
-          const color = hexToRgb(cfg.fontColor);
-          const fontSize = cfg.fontSize;
-          const lineH = fontSize * 1.05;
-          const lines = wrapText(text, font, fontSize, w);
+
+          const fontFamily = FONT_CSS_MAP[cfg.fontFamily] || FONT_CSS_MAP.helvetica;
+          const weight = cfg.fontWeight === 'bold' ? 'bold' : 'normal';
+          // Convert pt to px at 300 DPI: 1pt = 300/72 px ≈ 4.1667px
+          const fontSizePx = cfg.fontSize * (300 / 72);
+          ctx.font = `${weight} ${fontSizePx}px ${fontFamily}`;
+          ctx.fillStyle = hexToRGBA(cfg.fontColor);
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+
+          const lines = wrapTextCanvas(ctx, text, w);
+          const lineH = fontSizePx * 1.15;
           const totalH = lines.length * lineH;
-          let lineY = yTop - (h - totalH) / 2 - fontSize;
+          let lineY = y + (h - totalH) / 2 + fontSizePx / 2;
 
           for (const line of lines) {
-            const lineW = font.widthOfTextAtSize(line, fontSize);
-            page.drawText(line, { x: x + (w - lineW) / 2, y: lineY, size: fontSize, font, color });
-            lineY -= lineH;
+            ctx.fillText(line, x + w / 2, lineY);
+            lineY += lineH;
           }
         }
       }
+
+      return canvas;
     };
 
-    renderSide('front');
-    renderSide('back');
+    const frontCanvas = renderSide('front');
+    const backCanvas = renderSide('back');
 
-    const pdfBytes = await pdfDoc.save();
-    zip.file(`Cracha_${emp.name.replace(/\s+/g, '_')}.pdf`, pdfBytes);
+    // Convert canvas to PNG blob
+    const frontBlob = await new Promise<Blob>((resolve) =>
+      frontCanvas.toBlob((b) => resolve(b!), 'image/png')
+    );
+    const backBlob = await new Promise<Blob>((resolve) =>
+      backCanvas.toBlob((b) => resolve(b!), 'image/png')
+    );
+
+    const safeName = emp.name.replace(/\s+/g, '_');
+    zip.file(`${safeName}_frente.png`, frontBlob);
+    zip.file(`${safeName}_verso.png`, backBlob);
   }
 
   const content = await zip.generateAsync({ type: 'blob' });

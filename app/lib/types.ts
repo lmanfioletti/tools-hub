@@ -29,9 +29,49 @@ export interface EmployeeData {
   photoUrl?: string;
 }
 
-// 5.9cm x 9.1cm in points
-export const PAGE_WIDTH_PT = 5.9 * 28.3464566929;  // ~167.24
-export const PAGE_HEIGHT_PT = 9.1 * 28.3464566929; // ~257.95
+// Badge size configuration (in cm)
+export interface BadgeSize {
+  widthCm: number;
+  heightCm: number;
+}
+
+export const DEFAULT_BADGE_SIZE: BadgeSize = {
+  widthCm: 5.5,
+  heightCm: 9,
+};
+
+// Cut margin in cm (thin gray line around badge for cutting guidance)
+export const CUT_MARGIN_CM = 0.3;
+
+// Conversion: 1 cm = 28.3464566929 PDF points
+const CM_TO_PT = 28.3464566929;
+
+// Helper to compute page dimensions in points from a BadgeSize
+export function badgeSizeToPoints(size: BadgeSize) {
+  return {
+    widthPt: size.widthCm * CM_TO_PT,
+    heightPt: size.heightCm * CM_TO_PT,
+  };
+}
+
+// High-res PNG rendering (pixels): 300 DPI
+// 1 cm = 300/2.54 ≈ 118.11 px
+const CM_TO_PX_300DPI = 300 / 2.54;
+
+export function badgeSizeToPixels(size: BadgeSize) {
+  return {
+    widthPx: Math.round(size.widthCm * CM_TO_PX_300DPI),
+    heightPx: Math.round(size.heightCm * CM_TO_PX_300DPI),
+  };
+}
+
+export function cutMarginPixels() {
+  return Math.round(CUT_MARGIN_CM * CM_TO_PX_300DPI);
+}
+
+// Legacy point-based constants (still used by TemplateEditor aspect ratio)
+export const PAGE_WIDTH_PT = DEFAULT_BADGE_SIZE.widthCm * CM_TO_PT;  // ~155.9
+export const PAGE_HEIGHT_PT = DEFAULT_BADGE_SIZE.heightCm * CM_TO_PT; // ~255.12
 
 const textDefaults = {
   type: 'text' as const,

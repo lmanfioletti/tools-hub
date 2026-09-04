@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import styles from "./TemplateEditor.module.css";
-import { TemplateConfig, ElementConfig, PAGE_WIDTH_PT, PAGE_HEIGHT_PT } from "../lib/types";
+import { TemplateConfig, ElementConfig, BadgeSize, DEFAULT_BADGE_SIZE } from "../lib/types";
 
 interface TemplateEditorProps {
   template: TemplateConfig;
@@ -11,6 +11,7 @@ interface TemplateEditorProps {
   backgroundType: string;
   logoUrl: string | null;
   customFontName: string | null;
+  badgeSize?: BadgeSize;
 }
 
 const SAMPLE_DATA: Record<string, string> = {
@@ -29,7 +30,7 @@ const FONT_CSS_MAP: Record<string, string> = {
   custom: "CustomBadgeFont, sans-serif",
 };
 
-const BADGE_ASPECT = PAGE_WIDTH_PT / PAGE_HEIGHT_PT;
+
 
 export default function TemplateEditor({
   template,
@@ -38,7 +39,10 @@ export default function TemplateEditor({
   backgroundType,
   logoUrl,
   customFontName,
+  badgeSize,
 }: TemplateEditorProps) {
+  const size = badgeSize || DEFAULT_BADGE_SIZE;
+  const BADGE_ASPECT = size.widthCm / size.heightCm;
   const [activeSide, setActiveSide] = useState<"front" | "back">("front");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -59,7 +63,8 @@ export default function TemplateEditor({
     return () => window.removeEventListener("resize", measure);
   }, []);
 
-  const ptToPx = containerHeight / PAGE_HEIGHT_PT;
+  const pageHeightPt = size.heightCm * 28.3464566929;
+  const ptToPx = containerHeight / pageHeightPt;
 
   // ─── Update helpers ────────────────────────────────────
   const updateElement = useCallback(

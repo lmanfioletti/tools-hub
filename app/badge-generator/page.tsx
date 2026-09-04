@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useSession, signIn } from "next-auth/react";
 import * as XLSX from "xlsx";
-import { EmployeeData, TemplateConfig, DEFAULT_TEMPLATE } from "../lib/types";
+import { EmployeeData, TemplateConfig, DEFAULT_TEMPLATE, BadgeSize, DEFAULT_BADGE_SIZE } from "../lib/types";
 import { generateBadgeZip } from "../lib/pdfGenerator";
 import TemplateEditor from "./TemplateEditor";
 import styles from "./page.module.css";
@@ -30,6 +30,7 @@ export default function BadgeGenerator() {
   // Employees
   const [employees, setEmployees] = useState<EmployeeData[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [badgeSize, setBadgeSize] = useState<BadgeSize>(DEFAULT_BADGE_SIZE);
   const [formData, setFormData] = useState({
     name: "", jobTitle: "", cpf: "", unop: "", hospital: "",
   });
@@ -137,7 +138,7 @@ export default function BadgeGenerator() {
     if (!background || !logo || employees.length === 0) return;
     setIsGenerating(true);
     try {
-      await generateBadgeZip(background.url, logo, employees, template, customFontBytes || undefined);
+      await generateBadgeZip(background.url, logo, employees, template, customFontBytes || undefined, badgeSize);
     } catch (err) {
       console.error(err);
       alert("Erro ao gerar os crachás. Verifique o console.");
@@ -175,7 +176,7 @@ export default function BadgeGenerator() {
 
       <header className={styles.header}>
         <h1 className="title-gradient">Gerador de Crachás em Lote</h1>
-        <p className={styles.subtitle}>Monte o template visualmente, adicione os funcionários e gere os PDFs.</p>
+        <p className={styles.subtitle}>Monte o template visualmente, adicione os funcionários e gere as imagens PNG.</p>
       </header>
 
       {/* Step Indicator */}
@@ -230,6 +231,34 @@ export default function BadgeGenerator() {
             </label>
           </div>
 
+          {/* Badge Size Inputs */}
+          <div style={{ marginTop: "2rem" }}>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--foreground)", marginBottom: "0.75rem" }}>Tamanho do Crachá (cm)</h3>
+            <div style={{ display: "flex", gap: "1rem", maxWidth: 400 }}>
+              <label style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.25rem", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                Largura (cm)
+                <input
+                  type="number" step={0.1} min={1} max={30}
+                  value={badgeSize.widthCm}
+                  onChange={(e) => setBadgeSize({ ...badgeSize, widthCm: Number(e.target.value) })}
+                  className={styles.input}
+                  style={{ width: "100%" }}
+                />
+              </label>
+              <label style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.25rem", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                Altura (cm)
+                <input
+                  type="number" step={0.1} min={1} max={30}
+                  value={badgeSize.heightCm}
+                  onChange={(e) => setBadgeSize({ ...badgeSize, heightCm: Number(e.target.value) })}
+                  className={styles.input}
+                  style={{ width: "100%" }}
+                />
+              </label>
+            </div>
+            <p style={{ fontSize: "0.8rem", color: "var(--text-hint)", marginTop: "0.5rem" }}>Padrão: 5,5 × 9 cm. As imagens PNG serão geradas em alta resolução (300 DPI) com marcas de corte.</p>
+          </div>
+
           <div className={styles.stepNav}>
             <div />
             <button className="btn" disabled={!background} onClick={() => setStep(2)}>
@@ -253,6 +282,7 @@ export default function BadgeGenerator() {
             backgroundType={background.type}
             logoUrl={logo}
             customFontName={customFontName}
+            badgeSize={badgeSize}
           />
           <div className={styles.stepNav}>
             <button className="btn btn-outline" onClick={() => setStep(1)}>
@@ -386,7 +416,7 @@ export default function BadgeGenerator() {
               <ChevronLeft size={18} /> Voltar ao Template
             </button>
             <button onClick={handleGenerate} disabled={!canGenerate} className={`btn ${styles.generateBtn}`}>
-              {isGenerating ? "Gerando PDFs..." : <><Download size={20} /> Gerar e Baixar (ZIP)</>}
+              {isGenerating ? "Gerando PNGs..." : <><Download size={20} /> Gerar e Baixar (ZIP)</>}
             </button>
           </div>
         </section>
