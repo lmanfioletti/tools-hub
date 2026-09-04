@@ -4,6 +4,9 @@ import Link from "next/link";
 import { Wrench, FileBadge, ArrowRight, BookOpen } from "lucide-react";
 
 export default function Home() {
+  const enableBadgeGenerator = process.env.NEXT_PUBLIC_ENABLE_BADGE_GENERATOR !== 'false';
+  const enableStudyPlatform = process.env.NEXT_PUBLIC_ENABLE_STUDY_PLATFORM !== 'false';
+
   return (
     <main style={{ maxWidth: 1200, margin: "0 auto", padding: "4rem 2rem" }}>
       <div style={{ textAlign: "center", marginBottom: "4rem" }}>
@@ -17,7 +20,8 @@ export default function Home() {
 
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))", gap: "2rem" }}>
         {/* Tool Card: Gerador de Crachás */}
-        <Link href="/badge-generator" style={{ display: "block" }}>
+        {enableBadgeGenerator && (
+          <Link href="/badge-generator" style={{ display: "block" }}>
           <div className="material-panel" style={{ 
             height: "100%", 
             display: "flex", 
@@ -48,11 +52,13 @@ export default function Home() {
             <div style={{ display: "flex", alignItems: "center", color: "var(--primary)", fontWeight: "500", gap: "0.5rem" }}>
               Acessar ferramenta <ArrowRight size={18} />
             </div>
-          </div>
-        </Link>
+            </div>
+          </Link>
+        )}
 
         {/* Tool Card: Estudos Transpetro */}
-        <Link href="/estudos" style={{ display: "block" }}>
+        {enableStudyPlatform && (
+          <Link href="/estudos" style={{ display: "block" }}>
           <div className="material-panel" style={{ 
             height: "100%", 
             display: "flex", 
@@ -83,8 +89,9 @@ export default function Home() {
             <div style={{ display: "flex", alignItems: "center", color: "var(--success)", fontWeight: "500", gap: "0.5rem" }}>
               Começar a estudar <ArrowRight size={18} />
             </div>
-          </div>
-        </Link>
+            </div>
+          </Link>
+        )}
       </section>
     </main>
   );
