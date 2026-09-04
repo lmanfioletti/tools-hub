@@ -244,8 +244,9 @@ export async function generateBadgeZip(
     );
 
     const safeName = emp.name.replace(/\s+/g, '_');
-    zip.file(`${safeName}_frente.png`, frontBlob);
-    zip.file(`${safeName}_verso.png`, backBlob);
+    const folder = zip.folder(safeName)!;
+    folder.file('frente.png', frontBlob);
+    folder.file('verso.png', backBlob);
   }
 
   const content = await zip.generateAsync({ type: 'blob' });
